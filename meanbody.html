@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>guo的个人空间</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- 配置Tailwind自定义颜色 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        neutral: '#1F2937',
+                        accent: '#EC4899',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- 自定义工具类 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .audio-dot {
+                @apply w-16 h-16 rounded-full flex items-center justify-center shadow-lg cursor-pointer transition-all duration-300 transform hover:scale-110 focus:outline-none;
+            }
+            .floating-card {
+                @apply absolute rounded-2xl bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+            }
+            .song-item {
+                @apply flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200;
+            }
+            .song-title {
+                @apply font-medium text-neutral truncate;
+            }
+            .song-duration {
+                @apply text-sm text-gray-500;
+            }
+            .current-song {
+                @apply bg-blue-50 border-l-4 border-primary;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <!-- 音频控制按钮 - 保持最高层级 -->
+    <div class="fixed top-4 left-4 z-50">
+        <div id="audioControl" class="audio-dot bg-primary text-white" title="播放/暂停播放列表">
+            <i class="fa fa-play text-xl"></i>
+        </div>
+    </div>
+
+    <!-- 播放列表按钮 - 层级低于播放列表 -->
+    <div class="fixed top-4 right-4 z-30">
+        <div id="playlistToggle" class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg cursor-pointer transition-all duration-300 hover:scale-110">
+            <i class="fa fa-list text-xl"></i>
+        </div>
+    </div>
+
+    <!-- 播放列表侧边栏 - 层级高于播放列表按钮 -->
+    <div id="playlistSidebar" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out z-40 overflow-y-auto">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="font-bold text-lg text-neutral flex items-center">
+                <i class="fa fa-music text-primary mr-2"></i>播放列表
+            </h3>
+            <button id="closePlaylist" class="text-gray-500 hover:text-neutral transition-colors">
+                <i class="fa fa-times text-xl"></i>
+            </button>
+        </div>
+        <div id="playlist" class="p-2">
+            <!-- 播放列表将由JavaScript动态生成 -->
+        </div>
+    </div>
+
+    <!-- 页面标题 -->
+    <header class="py-8 text-center relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-pink-100 to-purple-100 -z-10"></div>
+        <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-bold text-accent mb-3 tracking-tight">简介</h1>
+        <p class="text-gray-600 max-w-2xl mx-auto">探索我的音频世界</p>
+    </header>
+
+    <!-- 主要内容区 -->
+    <main class="container mx-auto px-4 py-8 max-w-6xl relative">
+        <!-- 播放状态 -->
+        <div class="bg-white rounded-xl shadow-md p-4 mb-8">
+            <h3 class="font-medium text-neutral mb-2">
+                <i class="fa fa-headphones text-primary mr-2"></i>播放状态
+            </h3>
+            <div id="playbackStatus" class="text-sm text-gray-600">
+                点击左上角按钮开始随机播放
+            </div>
+            <div id="progressContainer" class="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div id="progressBar" class="h-full bg-primary w-0 transition-all duration-300"></div>
+            </div>
+            <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span id="currentTime">0:00</span>
+                <span id="totalTime">0:00</span>
+            </div>
+        </div>
+
+        <!-- 浮动卡片区域 -->
+        <div class="relative h-[200px] mb-16">
+            <div id="div1" class="floating-card left-[2%] top-0 w-[12%] p-4">
+                <div class="text-center">
+                    <i class="fa fa-music text-4xl text-primary mb-2"></i>
+                    <p class="text-sm font-medium">音乐</p>
+                </div>
+            </div>
+
+            <div id="div2" class="floating-card left-[16%] top-0 w-[12%] p-4">
+                <div class="text-center">
+                    <i class="fa fa-book text-4xl text-primary mb-2"></i>
+                    <p class="text-sm font-medium">书籍</p>
+                </div>
+            </div>
+
+            <div id="div3" class="floating-card left-[30%] top-0 w-[12%] p-4">
+                <div class="text-center">
+                    <i class="fa fa-film text-4xl text-primary mb-2"></i>
+                    <p class="text-sm font-medium">电影</p>
+                </div>
+            </div>
+
+            <div id="div4" class="floating-card left-[44%] top-0 w-[12%] p-4">
+                <div class="text-center">
+                    <i class="fa fa-gamepad text-4xl text-primary mb-2"></i>
+                    <p class="text-sm font-medium">游戏</p>
+                </div>
+            </div>
+
+            <div id="div5" class="floating-card left-[58%] top-0 w-[12%] p-4">
+                <div class="text-center">
+                    <i class="fa fa-paint-brush text-4xl text-primary mb-2"></i>
+                    <p class="text-sm font-medium">艺术</p>
+                </div>
+            </div>
+
+            <div id="div6" class="floating-card left-[72%] top-0 w-[12%] p-4">
+                <div class="text-center">
+                    <i class="fa fa-camera text-4xl text-primary mb-2"></i>
+                    <p class="text-sm font-medium">摄影</p>
+                </div>
+            </div>
+
+            <div id="div7" class="floating-card left-[86%] top-0 w-[12%] p-4">
+                <div class="text-center">
+                    <i class="fa fa-coffee text-4xl text-primary mb-2"></i>
+                    <p class="text-sm font-medium">生活</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 说明卡片 -->
+        <div class="bg-blue-50 border-l-4 border-primary p-4 rounded-r-lg mb-8">
+            <h3 class="font-medium text-primary mb-2">关于音频控制</h3>
+            <ul class="text-sm text-gray-700 space-y-1">
+                <li><i class="fa fa-check-circle text-primary mr-1"></i> 左上角按钮：控制整个播放列表</li>
+                <li><i class="fa fa-check-circle text-primary mr-1"></i> 右上角按钮：显示/隐藏播放列表</li>
+                <li><i class="fa fa-check-circle text-primary mr-1"></i> 所有歌曲将以随机顺序播放</li>
+            </ul>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="mt-16 py-6 bg-neutral text-white">
+        <div class="container mx-auto px-4 text-center">
+            <p>© 2025 guo的个人空间 | 使用 HTML5、Tailwind CSS 和 Font Awesome 构建</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript 交互增强 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 音频文件列表 - 根据用户需求更新
+            const songs = [
+                { id: 1, title: "该账号已注销", file: "music/001.mp3" },
+                { id: 2, title: "桃花诺", file: "music/002.mp3" },
+                { id: 3, title: "三角函数之歌", file: "music/003.m4a" },
+                { id: 4, title: "只因你太美", file: "music/004.m4a" },
+                { id: 5, title: "耍把戏", file: "music/005.m4a" },
+                { id: 6, title: "Just Say Hello", file: "music/006.mp3" },
+                { id: 7, title: "千与千寻", file: "music/007.mp3" },
+                { id: 8, title: "做自己的光", file: "music/008.mp3" }
+            ];
+
+            // 创建音频元素
+            const audio = new Audio();
+
+            // 获取控制元素
+            const audioControl = document.getElementById('audioControl');
+            const playbackStatus = document.getElementById('playbackStatus');
+            const progressBar = document.getElementById('progressBar');
+            const currentTime = document.getElementById('currentTime');
+            const totalTime = document.getElementById('totalTime');
+            const playlistToggle = document.getElementById('playlistToggle');
+            const playlistSidebar = document.getElementById('playlistSidebar');
+            const playlist = document.getElementById('playlist');
+            const closePlaylist = document.getElementById('closePlaylist');
+
+            // 播放列表相关变量
+            let shuffledSongs = [...songs];
+            let currentSongIndex = 0;
+            let isPlaying = false;
+
+            // 初始化 - 随机排序歌曲
+            function shuffleSongs() {
+                for (let i = shuffledSongs.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffledSongs[i], shuffledSongs[j]] = [shuffledSongs[j], shuffledSongs[i]];
+                }
+                renderPlaylist();
+            }
+
+            // 渲染播放列表
+            function renderPlaylist() {
+                playlist.innerHTML = '';
+                shuffledSongs.forEach((song, index) => {
+                    const songItem = document.createElement('div');
+                    songItem.className = `song-item ${index === currentSongIndex ? 'current-song' : ''}`;
+                    songItem.innerHTML = `
+                        <div class="flex items-center">
+                            <span class="w-6 text-center text-gray-500 mr-2">${index + 1}</span>
+                            <span class="song-title">${song.title}</span>
+                        </div>
+                        <span class="song-duration">${song.duration || '未知'}</span>
+                    `;
+
+                    // 点击播放特定歌曲
+                    songItem.addEventListener('click', () => {
+                        currentSongIndex = index;
+                        loadSong(shuffledSongs[currentSongIndex]);
+                        if (!isPlaying) {
+                            playAudio();
+                        }
+                        togglePlaylist(); // 播放歌曲后关闭播放列表
+                    });
+
+                    playlist.appendChild(songItem);
+                });
+            }
+
+            // 加载歌曲
+            function loadSong(song) {
+                audio.src = song.file;
+                audio.load();
+
+                // 更新播放状态
+                playbackStatus.innerHTML = `<i class="fa fa-music text-primary mr-1"></i> 已加载：${song.title}`;
+
+                // 更新播放列表高亮
+                renderPlaylist();
+            }
+
+            // 更新播放控制按钮显示
+            function updateControlButton() {
+                if (isPlaying) {
+                    audioControl.innerHTML = '<i class="fa fa-pause text-xl"></i>';
+                    audioControl.classList.remove('bg-primary');
+                    audioControl.classList.add('bg-red-500');
+                } else {
+                    audioControl.innerHTML = '<i class="fa fa-play text-xl"></i>';
+                    audioControl.classList.remove('bg-red-500');
+                    audioControl.classList.add('bg-primary');
+                }
+            }
+
+            // 播放音频
+            function playAudio() {
+                audio.play().then(() => {
+                    isPlaying = true;
+                    updateControlButton();
+                    playbackStatus.innerHTML = `<i class="fa fa-play-circle text-green-500 mr-1"></i> 正在播放：${shuffledSongs[currentSongIndex].title}`;
+                }).catch(error => {
+                    console.log('播放失败:', error);
+                    playbackStatus.innerHTML = `<i class="fa fa-exclamation-circle text-red-500 mr-1"></i> 播放失败：${error.message}`;
+                    isPlaying = false;
+                    updateControlButton();
+                });
+            }
+
+            // 暂停音频
+            function pauseAudio() {
+                audio.pause();
+                isPlaying = false;
+                updateControlButton();
+                playbackStatus.innerHTML = `<i class="fa fa-pause-circle text-yellow-500 mr-1"></i> 已暂停：${shuffledSongs[currentSongIndex].title}`;
+            }
+
+            // 切换到下一首歌曲
+            function nextSong() {
+                currentSongIndex = (currentSongIndex + 1) % shuffledSongs.length;
+                loadSong(shuffledSongs[currentSongIndex]);
+                playAudio();
+            }
+
+            // 切换播放列表显示
+            function togglePlaylist() {
+                playlistSidebar.classList.toggle('translate-x-full');
+            }
+
+            // 格式化时间
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+            }
+
+            // 更新进度条和时间显示
+            function updateProgress() {
+                const duration = audio.duration || 0;
+                const currentPos = audio.currentTime || 0;
+                const progressPercent = (currentPos / duration) * 100;
+
+                progressBar.style.width = `${progressPercent}%`;
+                currentTime.textContent = formatTime(currentPos);
+                totalTime.textContent = formatTime(duration);
+            }
+
+            // 事件监听器
+            // 控制按钮点击事件
+            audioControl.addEventListener('click', function() {
+                if (isPlaying) {
+                    pauseAudio();
+                } else {
+                    // 如果是从头开始播放，则加载第一首歌
+                    if (audio.currentTime === 0) {
+                        loadSong(shuffledSongs[currentSongIndex]);
+                    }
+                    playAudio();
+                }
+            });
+
+            // 歌曲结束事件
+            audio.addEventListener('ended', nextSong);
+
+            // 时间更新事件
+            audio.addEventListener('timeupdate', updateProgress);
+
+            // 元数据加载完成事件
+            audio.addEventListener('loadedmetadata', updateProgress);
+
+            // 播放列表切换事件
+            playlistToggle.addEventListener('click', togglePlaylist);
+
+            // 关闭播放列表按钮
+            closePlaylist.addEventListener('click', togglePlaylist);
+
+            // 初始化
+            shuffleSongs();
+            updateControlButton();
+
+            // 为浮动卡片添加动画效果
+            const cards = document.querySelectorAll('.floating-card');
+            cards.forEach((card, index) => {
+                // 设置不同的初始动画延迟
+                setTimeout(() => {
+                    card.style.transform = 'translateY(0)';
+                    card.style.opacity = '1';
+                }, 100 * index);
+            });
+        });
+    </script>
+</body>
+</html>
